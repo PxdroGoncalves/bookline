@@ -8,7 +8,7 @@ const key=b=>'bookline_reviews_'+b.id;
 
 function makeReviewId(){
   if(window.crypto&&typeof window.crypto.randomUUID==='function')return window.crypto.randomUUID();
-  return 'review_'+Date.now()+'_'+Math.random().toString(36).slice(2,10);
+  return 'review_'+Date.now()+'_'+Math.random().toString(36).slice(2,12);
 }
 
 function saveUserReviews(arr){
@@ -28,27 +28,59 @@ function getUser(){
   }
 
   let changed=false;
+  const used=new Set();
   arr=arr.map(r=>{
-    if(r&&r.reviewId)return r;
-    changed=true;
-    return {...(r||{}),reviewId:makeReviewId()};
+    const item={...(r||{})};
+    let rid=String(item.reviewId||'');
+    if(!rid||used.has(rid)){
+      rid=makeReviewId();
+      item.reviewId=rid;
+      changed=true;
+    }
+    used.add(rid);
+    return item;
   });
   if(changed)saveUserReviews(arr);
   return arr;
 }
 
-function starText(n){const v=Math.max(0,Math.min(5,Math.round(n)));return '★'.repeat(v)+'☆'.repeat(5-v)}
+function starText(n){
+  const v=Math.max(0,Math.min(5,Math.round(n)));
+  return '★'.repeat(v)+'☆'.repeat(5-v);
+}
+
 function fixedReviews(){return book?(book.reviews||[]).map(r=>({...r,user:false})):[]}
 function userReviews(){return getUser().map(r=>({...r,user:true}))}
 function allReviews(){return [...fixedReviews(),...userReviews()]}
 function reviewText(r){return r.comment??r.text??''}
-function average(){const a=allReviews();return a.length?a.reduce((s,r)=>s+Number(r.rating||0),0)/a.length:0}
+function average(){
+  const a=allReviews();
+  return a.length?a.reduce((s,r)=>s+Number(r.rating||0),0)/a.length:0;
+}
 
 if(!document.getElementById('review-delete-styles')){
   const style=document.createElement('style');
   style.id='review-delete-styles';
   style.textContent='.review-actions{display:flex;justify-content:flex-end;margin-top:12px}.delete-review-btn{border:1px solid rgba(199,127,137,.45);background:transparent;color:#9f5862;padding:6px 10px;border-radius:6px;font:600 13px "Barlow Semi Condensed",Arial,sans-serif;cursor:pointer}.delete-review-btn:hover{background:#f7e4e7;border-color:#c77f89}.review.user-review{position:relative}';
   document.head.appendChild(style);
+}
+
+function deleteUserReview(reviewId){
+  if(!book||!reviewId)return;
+  const arr=getUser();
+  const next=arr.filter(r=>String(r.reviewId)!==String(reviewId));
+  if(next.length===arr.length)return;
+  saveUserReviews(next);
+  renderReviews();
+}
+
+function bindDeleteButtons(){
+  document.querySelectorAll('.delete-review-btn').forEach(btn=>{
+    btn.onclick=()=>{
+      const reviewId=btn.getAttribute('data-review-id');
+      deleteUserReview(reviewId);
+    };
+  });
 }
 
 if(!book){
@@ -67,9 +99,16 @@ if(!book){
     const comment=document.getElementById('comment').value.trim();
     const rating=document.querySelector('input[name="rating"]:checked');
     if(!name||!comment||!rating)return;
+
     const arr=getUser();
-    arr.unshift({reviewId:makeReviewId(),name,rating:Number(rating.value),comment,user:true});
+    arr.unshift({
+      reviewId:makeReviewId(),
+      name,
+      rating:Number(rating.value),
+      comment
+    });
     saveUserReviews(arr);
+
     e.target.reset();
     const notice=document.getElementById('notice');
     notice.textContent='Avaliação adicionada!';
@@ -77,26 +116,14 @@ if(!book){
     setTimeout(()=>notice.style.display='none',2500);
     renderReviews();
   });
-
-  document.getElementById('reviews').addEventListener('click',e=>{
-    const btn=e.target.closest('.delete-review-btn');
-    if(!btn)return;
-    const reviewId=btn.dataset.reviewId;
-    if(!reviewId)return;
-    if(!confirm('Excluir sua avaliação deste livro?'))return;
-
-    const arr=getUser();
-    const next=arr.filter(r=>String(r.reviewId)!==String(reviewId));
-    if(next.length===arr.length)return;
-    saveUserReviews(next);
-    renderReviews();
-  });
 }
 
 function renderReviews(){
   if(!book)return;
-  const revs=allReviews(),av=average();
+  const revs=allReviews();
+  const av=average();
   document.getElementById('topRating').innerHTML=`<span class="stars">${starText(av)}</span><strong>${av.toFixed(1)}</strong><span>(${revs.length} avaliações)</span>`;
   document.getElementById('reviewSummary').textContent=`Média ${av.toFixed(1)} de 5, considerando ${revs.length} avaliações.`;
-  document.getElementById('reviews').innerHTML=revs.map(r=>`<article class="review ${r.user?'user-review':''}"><div class="review-head"><span class="review-name">${esc(r.name)}${r.user?' · você':''}</span><span class="stars">${starText(Number(r.rating))}</span></div><p>${esc(reviewText(r))}</p>${r.user?`<div class="review-actions"><button type="button" class="delete-review-btn" data-review-id="${esc(r.reviewId)}">Excluir meu comentário</button></div>`:''}</article>`).join('');
+  document.getElementById('reviews').innerHTML=revs.map(r=>`<article class="review ${r.user?'user-review':''}"><div class="review-head"><span class="review-name">${esc(r.name)}</span><span class="stars">${starText(Number(r.rating))}</span></div><p>${esc(reviewText(r))}</p>${r.user?`<div class="review-actions"><button type="button" class="delete-review-btn" data-review-id="${esc(r.reviewId)}">Excluir meu comentário</button></div>`:''}</article>`).join('');
+  bindDeleteButtons();
 }
