@@ -1,7 +1,56 @@
-const menuBtn=document.getElementById('menuBtn');const navLinks=document.getElementById('navLinks');if(menuBtn&&navLinks){menuBtn.addEventListener('click',()=>navLinks.classList.toggle('open'));}
+const menuBtn=document.getElementById('menuBtn');
+const navLinks=document.getElementById('navLinks');
+if(menuBtn&&navLinks){menuBtn.addEventListener('click',()=>navLinks.classList.toggle('open'));}
 
-const BOOK_COVER_META={
-'1984':['1984','George Orwell'],'a-biblioteca-da-meia-noite':['A Biblioteca da Meia-Noite','Matt Haig'],'a-hipotese-do-amor':['A Hipótese do Amor','Ali Hazelwood'],'a-paciente-silenciosa':['A Paciente Silenciosa','Alex Michaelides'],'a-razao-do-amor':['A Razão do Amor','Ali Hazelwood'],'a-revolucao-dos-bichos':['A Revolução dos Bichos','George Orwell'],'amor-teoricamente':['Amor, Teoricamente','Ali Hazelwood'],'apostando-no-amor':['Apostando no Amor','Lynn Painter'],'como-eu-era-antes-de-voce':['Como Eu Era Antes de Você','Jojo Moyes'],'dom-casmurro':['Dom Casmurro','Machado de Assis'],'e-assim-que-acaba':['É Assim que Acaba','Colleen Hoover'],'e-assim-que-comeca':['É Assim que Começa','Colleen Hoover'],'melhor-do-que-nos-filmes':['Melhor do que nos Filmes','Lynn Painter'],'mil-beijos-de-garoto':['Mil Beijos de Garoto','Tillie Cole'],'mil-vezes-amor':['Mil Vezes Amor','Lynn Painter'],'os-sete-maridos-de-evelyn-hugo':['Os Sete Maridos de Evelyn Hugo','Taylor Jenkins Reid'],'percy-jackson-o-ladrao-de-raios':['O Ladrão de Raios','Rick Riordan'],'quarto-de-despejo':['Quarto de Despejo','Carolina Maria de Jesus'],'sapiens':['Sapiens','Yuval Noah Harari'],'todas-as-suas-imperfeicoes':['Todas as Suas (Im)Perfeições','Colleen Hoover'],'torto-arado':['Torto Arado','Itamar Vieira Junior'],'tudo-nela-brilha-e-queima':['Tudo Nela Brilha e Queima','Ryane Leão'],'verity':['Verity','Colleen Hoover']};
-const coverCache={};async function resolveBookCover(slug){if(coverCache[slug])return coverCache[slug];const meta=BOOK_COVER_META[slug];if(!meta)return null;try{const q=encodeURIComponent(`intitle:${meta[0]} inauthor:${meta[1]}`);const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=5`);const j=await r.json();const hit=(j.items||[]).find(x=>x.volumeInfo&&x.volumeInfo.imageLinks);let u=hit&&hit.volumeInfo.imageLinks&&(hit.volumeInfo.imageLinks.thumbnail||hit.volumeInfo.imageLinks.smallThumbnail);if(u){u=u.replace('http://','https://').replace('&edge=curl','');coverCache[slug]=u;return u;}}catch(e){}return null;}
-async function hydrateBookCovers(root=document){const imgs=[...root.querySelectorAll('img[src*="assets/capas/"]')];for(const img of imgs){const m=(img.getAttribute('src')||'').match(/assets\/capas\/([^./]+)\.(?:jpg|jpeg|webp|png)/i);if(!m)continue;const u=await resolveBookCover(m[1]);if(u)img.src=u;}}
-document.addEventListener('DOMContentLoaded',()=>{hydrateBookCovers();const o=new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType===1){if(n.matches&&n.matches('img[src*="assets/capas/"]'))hydrateBookCovers(n.parentElement||document);else hydrateBookCovers(n);}})));o.observe(document.body,{childList:true,subtree:true});});
+const BOOK_COVERS={
+  'amor-teoricamente':'https://livrariascuritiba.vteximg.com.br/arquivos/ids/2137195-1000-1000/lv505089_1.jpg?v=638240665788770000',
+  'melhor-do-que-nos-filmes':'https://down-br.img.susercontent.com/file/sg-11134201-821fr-mgnocrbyb2mkbc',
+  'mil-vezes-amor':'https://static.wixstatic.com/media/62fbbf_9daac27ef03741f5a7b9d6bd4b300aef~mv2.jpg/v1/fill/w_1000,h_1000,al_c,q_85,enc_avif,quality_auto/62fbbf_9daac27ef03741f5a7b9d6bd4b300aef~mv2.jpg',
+  'apostando-no-amor':'https://down-br.img.susercontent.com/file/sg-11134201-7rdxy-m0xbsfv8cvzzff',
+  'e-assim-que-comeca':'https://livrariascuritiba.vteximg.com.br/arquivos/ids/2055197-1000-1000/LV493614.jpg?v=638441099977300000',
+  'e-assim-que-acaba':'https://is1-ssl.mzstatic.com/image/thumb/Publication118/v4/24/34/2e/24342ee1-5c16-0699-c90d-24fd04a31a95/1023431982.jpg/1200x1200wz.jpg',
+  'todas-as-suas-imperfeicoes':'https://down-br.img.susercontent.com/file/br-11134207-7r98o-mabfld9br2ye01',
+  'os-sete-maridos-de-evelyn-hugo':'https://cdn.dooca.store/81243/products/setmarev-1.jpg?v=1751464374&webp=0',
+  'a-paciente-silenciosa':'https://americanas.vtexassets.com/arquivos/ids/30567633/134201959_1_xlarge.jpg?v=638966544750770000',
+  'sapiens':'https://livrariascuritiba.vteximg.com.br/arquivos/ids/1948845-1000-1000/LV467840.jpg?v=638619788744700000',
+  'a-biblioteca-da-meia-noite':'https://armazemdolivro.cdn.magazord.com.br/img/2024/09/produto/106/group-23.png?ims=600x600',
+  'torto-arado':'https://down-br.img.susercontent.com/file/br-11134207-7r98o-ls9xcpp1rtpgf7',
+  '1984':'https://down-br.img.susercontent.com/file/br-11134207-81z1k-mhjmpe1zedqe2d',
+  'a-revolucao-dos-bichos':'https://down-br.img.susercontent.com/file/sg-11134201-8261l-mk48jjbdf85kb0',
+  'quarto-de-despejo':'https://martinsfontespaulista.vteximg.com.br/arquivos/ids/1643148-1000-1000/748738.jpg?v=638556105228500000',
+  'percy-jackson-o-ladrao-de-raios':'https://down-br.img.susercontent.com/file/br-11134207-7r98o-luj9wc6ziulcbe',
+  'dom-casmurro':'https://images.tcdn.com.br/img/img_prod/1043052/dom_casmurro_12019_1_c24baa33081e8405255ef17ea4c377c1.jpg',
+  'tudo-nela-brilha-e-queima':'https://s2.glbimg.com/gEnLDtFHwfIPmdFDQ3avOJeOl9U=/e.glbimg.com/og/ed/f/original/2022/03/22/image8_2.jpg',
+  'a-hipotese-do-amor':'https://down-br.img.susercontent.com/file/sg-11134201-7rce1-lsegmb42ffwna6',
+  'a-razao-do-amor':'https://cdn.dooca.store/81243/products/sxiysd6vunyb4yfk6ptqwfil7woeygunqwbb.jpg?v=1676659959',
+  'verity':'https://down-br.img.susercontent.com/file/br-11134207-7r98o-maj47x4uoz9r56',
+  'como-eu-era-antes-de-voce':'https://down-br.img.susercontent.com/file/400235ffb36db37678e0c8cd543dab56',
+  'mil-beijos-de-garoto':'https://livrariascuritiba.vteximg.com.br/arquivos/ids/1715570-1000-1000/LV413779.jpg?v=638619785389730000'
+};
+
+function applyCover(img){
+  if(!img||img.dataset.coverFixed==='1') return;
+  const src=img.getAttribute('src')||'';
+  const match=src.match(/assets\/capas\/([^./]+)\.(?:jpg|jpeg|png|webp)/i);
+  if(!match) return;
+  const url=BOOK_COVERS[match[1]];
+  if(!url) return;
+  img.dataset.coverFixed='1';
+  img.src=url;
+  img.referrerPolicy='no-referrer';
+}
+
+function hydrateBookCovers(root=document){
+  if(root.matches&&root.matches('img[src*="assets/capas/"]')) applyCover(root);
+  if(root.querySelectorAll) root.querySelectorAll('img[src*="assets/capas/"]').forEach(applyCover);
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  hydrateBookCovers(document);
+  const observer=new MutationObserver(records=>{
+    records.forEach(record=>record.addedNodes.forEach(node=>{
+      if(node.nodeType===1) hydrateBookCovers(node);
+    }));
+  });
+  observer.observe(document.body,{childList:true,subtree:true});
+});
