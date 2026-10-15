@@ -5,10 +5,41 @@ const id=params.get('id');
 const book=books.find(b=>b.id===id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const key=b=>'bookline_reviews_'+b.id;
-const getUser=()=>{if(!book)return[];try{return JSON.parse(localStorage.getItem(key(book))||'[]')}catch(e){return[]}};
+
+function makeReviewId(){
+  if(window.crypto&&typeof window.crypto.randomUUID==='function')return window.crypto.randomUUID();
+  return 'review_'+Date.now()+'_'+Math.random().toString(36).slice(2,10);
+}
+
+function saveUserReviews(arr){
+  if(!book)return;
+  if(arr.length)localStorage.setItem(key(book),JSON.stringify(arr));
+  else localStorage.removeItem(key(book));
+}
+
+function getUser(){
+  if(!book)return[];
+  let arr=[];
+  try{
+    const parsed=JSON.parse(localStorage.getItem(key(book))||'[]');
+    arr=Array.isArray(parsed)?parsed:[];
+  }catch(e){
+    arr=[];
+  }
+
+  let changed=false;
+  arr=arr.map(r=>{
+    if(r&&r.reviewId)return r;
+    changed=true;
+    return {...(r||{}),reviewId:makeReviewId()};
+  });
+  if(changed)saveUserReviews(arr);
+  return arr;
+}
+
 function starText(n){const v=Math.max(0,Math.min(5,Math.round(n)));return '★'.repeat(v)+'☆'.repeat(5-v)}
 function fixedReviews(){return book?(book.reviews||[]).map(r=>({...r,user:false})):[]}
-function userReviews(){return getUser().map((r,index)=>({...r,user:true,userIndex:index}))}
+function userReviews(){return getUser().map(r=>({...r,user:true}))}
 function allReviews(){return [...fixedReviews(),...userReviews()]}
 function reviewText(r){return r.comment??r.text??''}
 function average(){const a=allReviews();return a.length?a.reduce((s,r)=>s+Number(r.rating||0),0)/a.length:0}
@@ -37,8 +68,8 @@ if(!book){
     const rating=document.querySelector('input[name="rating"]:checked');
     if(!name||!comment||!rating)return;
     const arr=getUser();
-    arr.unshift({name,rating:Number(rating.value),comment,user:true});
-    localStorage.setItem(key(book),JSON.stringify(arr));
+    arr.unshift({reviewId:makeReviewId(),name,rating:Number(rating.value),comment,user:true});
+    saveUserReviews(arr);
     e.target.reset();
     const notice=document.getElementById('notice');
     notice.textContent='Avaliação adicionada!';
@@ -48,16 +79,16 @@ if(!book){
   });
 
   document.getElementById('reviews').addEventListener('click',e=>{
-    const btn=e.target.closest('[data-delete-review]');
+    const btn=e.target.closest('.delete-review-btn');
     if(!btn)return;
-    const index=Number(btn.dataset.deleteReview);
-    if(!Number.isInteger(index))return;
+    const reviewId=btn.dataset.reviewId;
+    if(!reviewId)return;
     if(!confirm('Excluir sua avaliação deste livro?'))return;
+
     const arr=getUser();
-    if(index<0||index>=arr.length)return;
-    arr.splice(index,1);
-    if(arr.length)localStorage.setItem(key(book),JSON.stringify(arr));
-    else localStorage.removeItem(key(book));
+    const next=arr.filter(r=>String(r.reviewId)!==String(reviewId));
+    if(next.length===arr.length)return;
+    saveUserReviews(next);
     renderReviews();
   });
 }
@@ -67,5 +98,5 @@ function renderReviews(){
   const revs=allReviews(),av=average();
   document.getElementById('topRating').innerHTML=`<span class="stars">${starText(av)}</span><strong>${av.toFixed(1)}</strong><span>(${revs.length} avaliações)</span>`;
   document.getElementById('reviewSummary').textContent=`Média ${av.toFixed(1)} de 5, considerando ${revs.length} avaliações.`;
-  document.getElementById('reviews').innerHTML=revs.map(r=>`<article class="review ${r.user?'user-review':''}"><div class="review-head"><span class="review-name">${esc(r.name)}${r.user?' · você':''}</span><span class="stars">${starText(Number(r.rating))}</span></div><p>${esc(reviewText(r))}</p>${r.user?`<div class="review-actions"><button type="button" class="delete-review-btn" data-delete-review="${r.userIndex}">Excluir meu comentário</button></div>`:''}</article>`).join('');
+  document.getElementById('reviews').innerHTML=revs.map(r=>`<article class="review ${r.user?'user-review':''}"><div class="review-head"><span class="review-name">${esc(r.name)}${r.user?' · você':''}</span><span class="stars">${starText(Number(r.rating))}</span></div><p>${esc(reviewText(r))}</p>${r.user?`<div class="review-actions"><button type="button" class="delete-review-btn" data-review-id="${esc(r.reviewId)}">Excluir meu comentário</button></div>`:''}</article>`).join('');
 }
