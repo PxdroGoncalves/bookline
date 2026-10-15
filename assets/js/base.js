@@ -7,4 +7,21 @@ function resolveMedia(src){const media=window.BOOKLINE_MEDIA||{};if(media[src])r
 function applyMedia(img){if(!img||img.dataset.booklineMedia==='1')return;const original=img.getAttribute('src')||'';const url=resolveMedia(original);if(!url)return;img.dataset.booklineMedia='1';img.src=url;if(/^https?:/i.test(url))img.referrerPolicy='no-referrer';}
 function hydrateBookCovers(root=document){if(root&&root.matches&&root.matches('img'))applyMedia(root);if(root&&root.querySelectorAll)root.querySelectorAll('img').forEach(applyMedia);}
 window.hydrateBookCovers=hydrateBookCovers;
-document.addEventListener('DOMContentLoaded',()=>{hydrateBookCovers(document);const observer=new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(node=>{if(node.nodeType===1)hydrateBookCovers(node);})));observer.observe(document.body,{childList:true,subtree:true});});
+function loadEmbeddedMedia(){
+  const files=new Set();
+  document.querySelectorAll('img[src^="assets/turma/"],img[src^="assets/bienal/"]').forEach(img=>{
+    const src=img.getAttribute('src')||'';
+    const m=src.match(/^assets\/(?:turma|bienal)\/([^./]+)\.(?:jpe?g|webp|png)$/i);
+    if(m)files.add(`assets/js/media/${m[1]}.js`);
+  });
+  files.forEach(src=>{
+    if(document.querySelector(`script[data-bookline-media="${src}"]`))return;
+    const s=document.createElement('script');
+    s.src=src;
+    s.dataset.booklineMedia=src;
+    s.onload=()=>hydrateBookCovers(document);
+    document.head.appendChild(s);
+  });
+}
+loadEmbeddedMedia();
+document.addEventListener('DOMContentLoaded',()=>{hydrateBookCovers(document);loadEmbeddedMedia();const observer=new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(node=>{if(node.nodeType===1)hydrateBookCovers(node);})));observer.observe(document.body,{childList:true,subtree:true});});
