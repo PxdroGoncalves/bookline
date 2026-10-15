@@ -78,6 +78,9 @@ function bindDeleteButtons(){
   document.querySelectorAll('.delete-review-btn').forEach(btn=>{
     btn.onclick=()=>{
       const reviewId=btn.getAttribute('data-review-id');
+      if(!reviewId)return;
+      const confirmed=window.confirm('Tem certeza que deseja excluir seu comentário?');
+      if(!confirmed)return;
       deleteUserReview(reviewId);
     };
   });
